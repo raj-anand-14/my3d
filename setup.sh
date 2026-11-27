@@ -12,6 +12,17 @@ fi
 # 2. Python env (conda recommended; TripoSG targets Python 3.10)
 #    conda create -n my3d python=3.10 -y && conda activate my3d
 
+PYV="$(python -c 'import sys; print(f"{sys.version_info[0]}.{sys.version_info[1]}")' 2>/dev/null || echo none)"
+if [ "$PYV" != "3.10" ]; then
+  echo "ERROR: Python 3.10 is required (found: $PYV)."
+  echo "Quick fix without conda:"
+  echo "  python -m pip install uv"
+  echo "  python -m uv venv --seed -p 3.10 .venv"
+  echo "  source .venv/Scripts/activate   # Windows Git Bash  (Linux/WSL: source .venv/bin/activate)"
+  echo "  then rerun this script."
+  exit 1
+fi
+
 # 3. PyTorch for your CUDA version
 pip install torch torchvision --index-url "https://download.pytorch.org/whl/${CUDA_TAG}"
 
