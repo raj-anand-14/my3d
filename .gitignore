@@ -1,0 +1,6 @@
+# Upstream code + weights are fetched by setup.sh / on first run
+TripoSG/
+outputs/
+__pycache__/
+*.pyc
+.venv/
