@@ -27,9 +27,44 @@ OUT_DIR.mkdir(exist_ok=True)
 sys.path.insert(0, str(TRIPOSG_DIR))
 sys.path.insert(0, str(TRIPOSG_DIR / "scripts"))
 
+# `diso` gives fast GPU mesh extraction but needs a CUDA compile that can fail.
+# If it's missing, stub it and use TripoSG's scikit-image extraction instead.
+try:
+    import diso  # noqa: F401
+    HAS_DISO = True
+except Exception:
+    import types
+    _stub = types.ModuleType("diso")
+    _stub.DiffDMC = None
+    sys.modules["diso"] = _stub
+    HAS_DISO = False
+
+import numpy as np  # noqa: E402
+import trimesh  # noqa: E402
 from triposg.pipelines.pipeline_triposg import TripoSGPipeline  # noqa: E402
 from briarmbg import BriaRMBG  # noqa: E402
-from inference_triposg import run_triposg  # noqa: E402
+from image_process import prepare_image  # noqa: E402
+from inference_triposg import simplify_mesh  # noqa: E402
+
+print(f"Mesh extraction: {'diso (fast GPU)' if HAS_DISO else 'scikit-image fallback (diso not installed)'}")
+
+
+@torch.no_grad()
+def run_triposg(pipe, image_input, rmbg_net, seed, num_inference_steps=50, guidance_scale=7.0, faces=-1):
+    img_pil = prepare_image(image_input, bg_color=np.array([1.0, 1.0, 1.0]), rmbg_net=rmbg_net)
+    outputs = pipe(
+        image=img_pil,
+        generator=torch.Generator(device=pipe.device).manual_seed(seed),
+        num_inference_steps=num_inference_steps,
+        guidance_scale=guidance_scale,
+        use_flash_decoder=HAS_DISO,
+    ).samples[0]
+    if outputs[0] is None:
+        raise RuntimeError("Mesh extraction failed (no surface found). Try another image or seed.")
+    mesh = trimesh.Trimesh(outputs[0].astype(np.float32), np.ascontiguousarray(outputs[1]))
+    if faces > 0:
+        mesh = simplify_mesh(mesh, faces)
+    return mesh
 
 DEVICE = "cuda"
 DTYPE = torch.float16
@@ -71,16 +106,19 @@ def generate(
     in_path = OUT_DIR / f"{job}.png"   # TripoSG's prepare_image expects a file path
     img.save(in_path)
     out_path = OUT_DIR / f"{job}.glb"
-    with gpu_lock:
-        mesh = run_triposg(
-            pipe,
-            image_input=str(in_path),
-            rmbg_net=rmbg_net,
-            seed=seed,
-            num_inference_steps=steps,
-            guidance_scale=guidance,
-            faces=faces,
-        )
+    try:
+        with gpu_lock:
+            mesh = run_triposg(
+                pipe,
+                image_input=str(in_path),
+                rmbg_net=rmbg_net,
+                seed=seed,
+                num_inference_steps=steps,
+                guidance_scale=guidance,
+                faces=faces,
+            )
+    except RuntimeError as e:
+        raise HTTPException(500, str(e))
     mesh.export(str(out_path))
     return FileResponse(out_path, media_type="model/gltf-binary", filename=out_path.name)
 

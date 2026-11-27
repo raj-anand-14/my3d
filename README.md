@@ -40,7 +40,8 @@ curl -F image=@chair.png -F faces=20000 http://localhost:8000/generate -o chair.
   (C++ workload)* and the *CUDA Toolkit* installed so `diso` can compile. WSL2 (Ubuntu) is usually smoother.
 - **`No matching distribution found for torch`:** wrong Python version (must be 3.10) or
   wrong CUDA_TAG. Check `nvidia-smi`; for CUDA 12.4+ use `CUDA_TAG=cu124`.
-- **`diso` fails to build:** install the CUDA toolkit so `nvcc` exists
+- **`diso` fails to build:** it's optional. my3d falls back to scikit-image mesh extraction
+  (a bit slower). To get the fast path: install the CUDA toolkit so `nvcc` exists
   (`conda install -c nvidia cuda-toolkit`), then rerun `pip install --no-build-isolation diso`.
 - **"Unable to load plugins … libOpenGL.so.0" warnings:** harmless on headless servers.
   To silence them: `sudo apt install libopengl0`.
