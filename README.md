@@ -1,6 +1,11 @@
 # my3d — your own image-to-3D generator (TripoSG starter)
 
 Image in → 3D mesh (GLB) out, served from your own GPU with a small web UI.
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/raj-anand-14/my3d/blob/main/my3d_colab.ipynb)
+
+**No NVIDIA GPU?** Click the badge to run it free on Google Colab.
+
 Built on **TripoSG** (open-sourced by Tripo / VAST AI Research, MIT license).
 
 ## What you need
